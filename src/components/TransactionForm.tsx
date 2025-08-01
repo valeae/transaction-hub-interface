@@ -6,12 +6,6 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 
-interface TransactionData {
-  transactionId: string;
-  transaction: any;
-  webcheckout: any;
-}
-
 const TransactionForm = () => {
   const [transactionId, setTransactionId] = useState<string>('');
   const [transactionData, setTransactionData] = useState<string>('{}');
@@ -31,70 +25,7 @@ const TransactionForm = () => {
       return;
     }
     setTransactionId(transaction);
-    fetchTransactionData(transaction);
   }, []);
-
-  // Nueva función para enviar el POST al webhook con el parámetro transaction
-  const sendTransactionToWebhook = async (transaction: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await fetch(`${WEBHOOK_URL}?transaction=${transaction}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}) // Puedes enviar un body vacío o ajustarlo según lo que requiera el webhook
-      });
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Error ${response.status}: ${errorData}`);
-      }
-      toast({
-        title: 'Transacción enviada',
-        description: 'Se envió el parámetro transaction al webhook correctamente.',
-      });
-    } catch (err) {
-      setError('Error al enviar la transacción al webhook.');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchTransactionData = async (id: string) => {
-    setLoading(true);
-    setError('');
-    
-    try {
-      const response = await fetch(`${WEBHOOK_URL}?_id=${id}`);
-      
-      if (!response.ok) {
-        throw new Error('Error al obtener los datos');
-      }
-      
-      const data: TransactionData = await response.json();
-      
-      if (!data.transaction && !data.webcheckout) {
-        setError('No se encontraron datos para esta transacción.');
-        return;
-      }
-      
-      setTransactionData(JSON.stringify(data.transaction || {}, null, 2));
-      setWebcheckoutData(JSON.stringify(data.webcheckout || {}, null, 2));
-      
-      toast({
-        title: "Datos cargados",
-        description: "Se han cargado los datos de la transacción correctamente.",
-      });
-      
-    } catch (err) {
-      setError('Error al cargar los datos de la transacción.');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const validateJSON = (jsonString: string): boolean => {
     try {
@@ -106,7 +37,6 @@ const TransactionForm = () => {
   };
 
   const handleUpdate = async () => {
-    // Validación de ID de transacción
     if (!transactionId || transactionId.trim() === '') {
       toast({
         variant: "destructive",
@@ -116,7 +46,6 @@ const TransactionForm = () => {
       return;
     }
 
-    // Validación de JSON
     if (!validateJSON(transactionData)) {
       toast({
         variant: "destructive",
@@ -142,7 +71,6 @@ const TransactionForm = () => {
       const parsedTransaction = JSON.parse(transactionData);
       const parsedWebcheckout = JSON.parse(webcheckoutData);
       
-      // Validación de que el ID coincida con la inserción
       if (parsedTransaction.id && parsedTransaction.id !== transactionId) {
         toast({
           variant: "destructive",
@@ -182,23 +110,14 @@ const TransactionForm = () => {
         throw new Error(`Error ${response.status}: ${errorData}`);
       }
       
-      const responseData = await response.json();
-      
       toast({
         title: "Actualización exitosa",
         description: `Los datos se han actualizado correctamente para la transacción ${transactionId}.`,
         className: "bg-primary text-white border border-border",
       });
-      
-      // Refrescar datos después de actualización exitosa
-      setTimeout(() => {
-        fetchTransactionData(transactionId);
-      }, 1000);
-      
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error al actualizar: ${errorMessage}`);
-      
       toast({
         variant: "destructive",
         title: "Error de actualización",
