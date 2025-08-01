@@ -8,35 +8,53 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* ePayco/Ipeco Brand Colors */
     --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --foreground: 228 15% 9%;
+    
+    --header-bg: 228 15% 9%; /* #16161D */
+    --brand-orange: 18 100% 56%; /* #FF6720 */
+    --brand-blue: 210 95% 45%; /* #1677DA */
+    --ipeco-blue: 210 85% 15%; /* #0C2340 */
+    --ipeco-yellow: 45 95% 47%; /* #F2A900 */
+    
+    --white: 0 0% 100%; /* #FFFFFF */
+    --gray-light: 0 0% 85%; /* #D9D9D9 */
+    --gray-medium: 0 0% 73%; /* #BAB9B9 */
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 228 15% 9%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 228 15% 9%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 210 85% 15%; /* Ipeco Blue */
+    --primary-foreground: 0 0% 100%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 45 95% 47%; /* Ipeco Yellow */
+    --secondary-foreground: 228 15% 9%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 45%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 18 100% 56%; /* ePayco Orange */
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 0 0% 85%;
+    --input: 0 0% 96%;
+    --ring: 210 85% 15%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+    
+    /* Gradients */
+    --gradient-brand: linear-gradient(135deg, hsl(var(--brand-orange)), hsl(var(--brand-blue)));
+    --gradient-ipeco: linear-gradient(135deg, hsl(var(--ipeco-blue)), hsl(var(--ipeco-yellow)));
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +119,28 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  
+  .font-segoe {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  
+  .font-segoe-semibold {
+    font-family: "Segoe UI Semibold", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-weight: 600;
+  }
+  
+  .font-segoe-bold {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-weight: 700;
+  }
+  
+  .gradient-brand {
+    background: var(--gradient-brand);
+  }
+  
+  .gradient-ipeco {
+    background: var(--gradient-ipeco);
   }
 }

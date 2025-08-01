@@ -1,0 +1,216 @@
+import { useState, useEffect } from 'react';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/hooks/use-toast';
+
+interface TransactionData {
+  transactionId: string;
+  transaction: any;
+  webcheckout: any;
+}
+
+const TransactionForm = () => {
+  const [transactionId, setTransactionId] = useState<string>('');
+  const [transactionData, setTransactionData] = useState<string>('');
+  const [webcheckoutData, setWebcheckoutData] = useState<string>('');
+  const [loading, setLoading] = useState<boolean>(false);
+  const [error, setError] = useState<string>('');
+
+  const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/c600a845-e746-46f9-9d2d-e36bffe10953';
+
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const id = urlParams.get('transactionId');
+    
+    if (!id) {
+      setError('Falta el ID de la transacción en la URL');
+      return;
+    }
+    
+    setTransactionId(id);
+    fetchTransactionData(id);
+  }, []);
+
+  const fetchTransactionData = async (id: string) => {
+    setLoading(true);
+    setError('');
+    
+    try {
+      const response = await fetch(`${WEBHOOK_URL}?_id=${id}`);
+      
+      if (!response.ok) {
+        throw new Error('Error al obtener los datos');
+      }
+      
+      const data: TransactionData = await response.json();
+      
+      if (!data.transaction && !data.webcheckout) {
+        setError('No se encontraron datos para esta transacción.');
+        return;
+      }
+      
+      setTransactionData(JSON.stringify(data.transaction || {}, null, 2));
+      setWebcheckoutData(JSON.stringify(data.webcheckout || {}, null, 2));
+      
+      toast({
+        title: "Datos cargados",
+        description: "Se han cargado los datos de la transacción correctamente.",
+      });
+      
+    } catch (err) {
+      setError('Error al cargar los datos de la transacción.');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const validateJSON = (jsonString: string): boolean => {
+    try {
+      JSON.parse(jsonString);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const handleUpdate = async () => {
+    if (!validateJSON(transactionData)) {
+      toast({
+        variant: "destructive",
+        title: "Error de validación",
+        description: "Los datos de 'transaction' no son un JSON válido.",
+      });
+      return;
+    }
+    
+    if (!validateJSON(webcheckoutData)) {
+      toast({
+        variant: "destructive",
+        title: "Error de validación",
+        description: "Los datos de 'webcheckout' no son un JSON válido.",
+      });
+      return;
+    }
+    
+    setLoading(true);
+    
+    try {
+      const payload = {
+        transactionId,
+        transaction: JSON.parse(transactionData),
+        webcheckout: JSON.parse(webcheckoutData)
+      };
+      
+      const response = await fetch(WEBHOOK_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!response.ok) {
+        throw new Error('Error al actualizar los datos');
+      }
+      
+      toast({
+        title: "Actualización exitosa",
+        description: "Los datos se han actualizado correctamente.",
+        className: "bg-ipeco-yellow text-ipeco-blue",
+      });
+      
+    } catch (err) {
+      toast({
+        variant: "destructive",
+        title: "Error de actualización",
+        description: "No se pudieron actualizar los datos.",
+      });
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (error && !transactionId) {
+    return (
+      <div className="container mx-auto px-6 py-8">
+        <Card className="border-destructive">
+          <CardContent className="pt-6">
+            <p className="text-destructive text-center font-segoe-bold">{error}</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-6 py-8 max-w-4xl">
+      <Card className="border-primary">
+        <CardHeader className="bg-primary text-primary-foreground">
+          <CardTitle className="font-segoe-semibold text-xl">
+            Información de Transacción
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 pt-6">
+          {error && (
+            <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md">
+              <p className="font-segoe">{error}</p>
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <Label htmlFor="transactionId" className="font-segoe-bold">
+              ID de Transacción
+            </Label>
+            <Input
+              id="transactionId"
+              value={transactionId}
+              readOnly
+              className="bg-muted font-segoe-bold"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="transaction" className="font-segoe-bold">
+              Datos de Transacción
+            </Label>
+            <Textarea
+              id="transaction"
+              value={transactionData}
+              onChange={(e) => setTransactionData(e.target.value)}
+              placeholder="Datos de la transacción en formato JSON..."
+              className="min-h-[200px] font-mono text-sm"
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="webcheckout" className="font-segoe-bold">
+              Datos de Webcheckout
+            </Label>
+            <Textarea
+              id="webcheckout"
+              value={webcheckoutData}
+              onChange={(e) => setWebcheckoutData(e.target.value)}
+              placeholder="Datos del webcheckout en formato JSON..."
+              className="min-h-[200px] font-mono text-sm"
+            />
+          </div>
+          
+          <Button
+            onClick={handleUpdate}
+            disabled={loading || !transactionId}
+            className="w-full font-segoe-bold bg-secondary text-secondary-foreground hover:bg-secondary/90"
+          >
+            {loading ? 'Actualizando...' : 'Actualizar información'}
+          </Button>
+        </CardContent>
+      </Card>
+    </div>
+  );
+};
+
+export default TransactionForm;

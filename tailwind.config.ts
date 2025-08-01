@@ -52,6 +52,14 @@ export default {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
 				},
+				// Brand colors
+				'header-bg': 'hsl(var(--header-bg))',
+				'brand-orange': 'hsl(var(--brand-orange))',
+				'brand-blue': 'hsl(var(--brand-blue))',
+				'ipeco-blue': 'hsl(var(--ipeco-blue))',
+				'ipeco-yellow': 'hsl(var(--ipeco-yellow))',
+				'gray-light': 'hsl(var(--gray-light))',
+				'gray-medium': 'hsl(var(--gray-medium))',
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
 					foreground: 'hsl(var(--sidebar-foreground))',
