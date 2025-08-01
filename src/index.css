@@ -28,10 +28,10 @@ All colors MUST be HSL.
     --popover: 0 0% 100%;
     --popover-foreground: 228 15% 9%;
 
-    --primary: 210 85% 15%; /* Ipeco Blue */
+    --primary: 210 85% 15%; /* ePayco Blue */
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 45 95% 47%; /* Ipeco Yellow */
+    --secondary: 0 0% 74%; /* ePayco Blue */
     --secondary-foreground: 228 15% 9%;
 
     --muted: 0 0% 96%;

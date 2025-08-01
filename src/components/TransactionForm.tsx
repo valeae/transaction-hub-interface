@@ -32,7 +32,8 @@ const TransactionForm = () => {
     }
 
     setTransactionId(transaction);
-    sendTransactionToWebhook(transaction);
+    // Solo cargar datos, NO enviar POST
+    fetchTransactionData(transaction);
   }, []);
 
   // Nueva función para enviar el POST al webhook con el parámetro transaction
@@ -45,7 +46,7 @@ const TransactionForm = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}) // Puedes enviar un body vacío o ajustarlo según lo que requiera el webhook
+        body: JSON.stringify({}),
       });
       if (!response.ok) {
         const errorData = await response.text();
@@ -55,6 +56,10 @@ const TransactionForm = () => {
         title: 'Transacción enviada',
         description: 'Se envió el parámetro transaction al webhook correctamente.',
       });
+
+      // Llama a fetchTransactionData para llenar los inputs
+      await fetchTransactionData(transaction);
+
     } catch (err) {
       setError('Error al enviar la transacción al webhook.');
       console.error('Error:', err);
@@ -188,7 +193,7 @@ const TransactionForm = () => {
       toast({
         title: "Actualización exitosa",
         description: `Los datos se han actualizado correctamente para la transacción ${transactionId}.`,
-        className: "bg-ipeco-yellow text-ipeco-blue",
+        className: "bg-primary text-white border border-border",
       });
       
       // Refrescar datos después de actualización exitosa
@@ -246,7 +251,7 @@ const TransactionForm = () => {
               id="transactionId"
               value={transactionId}
               readOnly
-              className="bg-muted font-segoe-bold"
+              className="bg-muted font-segoe-bold rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
             />
           </div>
           
@@ -259,7 +264,7 @@ const TransactionForm = () => {
               value={transactionData}
               onChange={(e) => setTransactionData(e.target.value)}
               placeholder="Datos de la transacción en formato JSON..."
-              className="min-h-[200px] font-mono text-sm"
+              className="min-h-[200px] font-mono text-sm rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
             />
           </div>
           
@@ -272,17 +277,19 @@ const TransactionForm = () => {
               value={webcheckoutData}
               onChange={(e) => setWebcheckoutData(e.target.value)}
               placeholder="Datos del webcheckout en formato JSON..."
-              className="min-h-[200px] font-mono text-sm"
+              className="min-h-[200px] font-mono text-sm rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
             />
           </div>
           
-          <Button
-            onClick={handleUpdate}
-            disabled={loading || !transactionId}
-            className="w-full font-segoe-bold bg-secondary text-secondary-foreground hover:bg-secondary/90"
-          >
-            {loading ? 'Actualizando...' : 'Actualizar información'}
-          </Button>
+          <div className="flex justify-end">
+            <Button
+              onClick={handleUpdate}
+              disabled={loading || !transactionId}
+              className="w-50 font-segoe-bold bg-secondary text-secondary-foreground hover:bg-secondary/90"
+            >
+              {loading ? 'Actualizando...' : 'Actualizar información'}
+            </Button>
+          </div>
         </CardContent>
       </Card>
     </div>
