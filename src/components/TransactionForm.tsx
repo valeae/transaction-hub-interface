@@ -4,7 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { toast } from '@/hooks/use-toast';
+import { useToast } from '@/hooks/use-toast';
 
 interface TransactionData {
   transactionId: string;
@@ -14,10 +14,11 @@ interface TransactionData {
 
 const TransactionForm = () => {
   const [transactionId, setTransactionId] = useState<string>('');
-  const [transactionData, setTransactionData] = useState<string>('');
-  const [webcheckoutData, setWebcheckoutData] = useState<string>('');
+  const [transactionData, setTransactionData] = useState<string>('{}');
+  const [webcheckoutData, setWebcheckoutData] = useState<string>('{}');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const { toast } = useToast();
 
   const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/c600a845-e746-46f9-9d2d-e36bffe10953';
 
@@ -78,6 +79,17 @@ const TransactionForm = () => {
   };
 
   const handleUpdate = async () => {
+    // Validación de ID de transacción
+    if (!transactionId || transactionId.trim() === '') {
+      toast({
+        variant: "destructive",
+        title: "Error de validación",
+        description: "No se ha proporcionado un ID de transacción válido.",
+      });
+      return;
+    }
+
+    // Validación de JSON
     if (!validateJSON(transactionData)) {
       toast({
         variant: "destructive",
@@ -97,12 +109,37 @@ const TransactionForm = () => {
     }
     
     setLoading(true);
+    setError('');
     
     try {
+      const parsedTransaction = JSON.parse(transactionData);
+      const parsedWebcheckout = JSON.parse(webcheckoutData);
+      
+      // Validación de que el ID coincida con la inserción
+      if (parsedTransaction.id && parsedTransaction.id !== transactionId) {
+        toast({
+          variant: "destructive",
+          title: "Error de consistencia",
+          description: `El ID en los datos de transacción (${parsedTransaction.id}) no coincide con el ID de la URL (${transactionId}).`,
+        });
+        setLoading(false);
+        return;
+      }
+      
+      if (parsedWebcheckout.transaction_id && parsedWebcheckout.transaction_id !== transactionId) {
+        toast({
+          variant: "destructive",
+          title: "Error de consistencia",
+          description: `El transaction_id en webcheckout (${parsedWebcheckout.transaction_id}) no coincide con el ID de la URL (${transactionId}).`,
+        });
+        setLoading(false);
+        return;
+      }
+      
       const payload = {
         transactionId,
-        transaction: JSON.parse(transactionData),
-        webcheckout: JSON.parse(webcheckoutData)
+        transaction: parsedTransaction,
+        webcheckout: parsedWebcheckout
       };
       
       const response = await fetch(WEBHOOK_URL, {
@@ -114,20 +151,31 @@ const TransactionForm = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Error al actualizar los datos');
+        const errorData = await response.text();
+        throw new Error(`Error ${response.status}: ${errorData}`);
       }
+      
+      const responseData = await response.json();
       
       toast({
         title: "Actualización exitosa",
-        description: "Los datos se han actualizado correctamente.",
+        description: `Los datos se han actualizado correctamente para la transacción ${transactionId}.`,
         className: "bg-ipeco-yellow text-ipeco-blue",
       });
       
+      // Refrescar datos después de actualización exitosa
+      setTimeout(() => {
+        fetchTransactionData(transactionId);
+      }, 1000);
+      
     } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
+      setError(`Error al actualizar: ${errorMessage}`);
+      
       toast({
         variant: "destructive",
         title: "Error de actualización",
-        description: "No se pudieron actualizar los datos.",
+        description: `No se pudieron actualizar los datos: ${errorMessage}`,
       });
       console.error('Error:', err);
     } finally {
