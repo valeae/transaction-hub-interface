@@ -18,6 +18,7 @@ const TransactionForm = () => {
   const [webcheckoutData, setWebcheckoutData] = useState<string>('{}');
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
+  const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
   const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/c600a845-e746-46f9-9d2d-e36bffe10953';
@@ -25,14 +26,11 @@ const TransactionForm = () => {
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
     const transaction = urlParams.get('transaction');
-
     if (!transaction) {
       setError('Falta el parámetro "transaction" en la URL');
       return;
     }
-
     setTransactionId(transaction);
-    // Solo cargar datos, NO enviar POST
     fetchTransactionData(transaction);
   }, []);
 
@@ -46,7 +44,7 @@ const TransactionForm = () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({}),
+        body: JSON.stringify({}) // Puedes enviar un body vacío o ajustarlo según lo que requiera el webhook
       });
       if (!response.ok) {
         const errorData = await response.text();
@@ -56,10 +54,6 @@ const TransactionForm = () => {
         title: 'Transacción enviada',
         description: 'Se envió el parámetro transaction al webhook correctamente.',
       });
-
-      // Llama a fetchTransactionData para llenar los inputs
-      await fetchTransactionData(transaction);
-
     } catch (err) {
       setError('Error al enviar la transacción al webhook.');
       console.error('Error:', err);
@@ -242,7 +236,7 @@ const TransactionForm = () => {
               <p className="font-segoe">{error}</p>
             </div>
           )}
-          
+
           <div className="space-y-2">
             <Label htmlFor="transactionId" className="font-segoe-bold">
               ID de Transacción
@@ -254,40 +248,73 @@ const TransactionForm = () => {
               className="bg-muted font-segoe-bold rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
             />
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="transaction" className="font-segoe-bold">
-              Datos de Transacción
-            </Label>
-            <Textarea
-              id="transaction"
-              value={transactionData}
-              onChange={(e) => setTransactionData(e.target.value)}
-              placeholder="Datos de la transacción en formato JSON..."
-              className="min-h-[200px] font-mono text-sm rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
-            />
+
+          {/* Dos columnas para los JSON */}
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="transaction" className="font-segoe-bold">
+                Datos de Transacción
+              </Label>
+              <Textarea
+                id="transaction"
+                value={transactionData}
+                onChange={(e) => setTransactionData(e.target.value)}
+                placeholder="Datos de la transacción en formato JSON..."
+                className="min-h-[200px] font-mono text-sm rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
+              />
+            </div>
+            <div className="flex-1 space-y-2">
+              <Label htmlFor="webcheckout" className="font-segoe-bold">
+                Datos de Webcheckout
+              </Label>
+              <Textarea
+                id="webcheckout"
+                value={webcheckoutData}
+                onChange={(e) => setWebcheckoutData(e.target.value)}
+                placeholder="Datos del webcheckout en formato JSON..."
+                className="min-h-[200px] font-mono text-sm rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
+              />
+            </div>
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="webcheckout" className="font-segoe-bold">
-              Datos de Webcheckout
-            </Label>
-            <Textarea
-              id="webcheckout"
-              value={webcheckoutData}
-              onChange={(e) => setWebcheckoutData(e.target.value)}
-              placeholder="Datos del webcheckout en formato JSON..."
-              className="min-h-[200px] font-mono text-sm rounded-lg border-2 border-primary/30 focus:border-primary/70 shadow-sm"
-            />
+
+          {/* Botón de previsualización */}
+          <div className="flex justify-start">
+            <Button
+              type="button"
+              variant="outline"
+              className="bg-primary text-white border border-border font-segoe-bold rounded-md px-4 py-2 hover:bg-primary/90 transition-colors duration-200"
+              onClick={() => setShowPreview((prev) => !prev)}
+            >
+              {showPreview ? 'Ocultar previsualización' : 'Previsualizar JSON a enviar'}
+            </Button>
           </div>
-          
+
+          {/* Previsualización del JSON */}
+          {showPreview && (
+            <div className="bg-muted border border-primary/30 rounded-lg p-4 font-mono text-xs whitespace-pre-wrap break-all">
+              {(() => {
+                let preview = {};
+                try {
+                  preview = {
+                    transactionId,
+                    transaction: JSON.parse(transactionData),
+                    webcheckout: JSON.parse(webcheckoutData),
+                  };
+                } catch {
+                  preview = { error: 'JSON inválido en alguno de los campos.' };
+                }
+                return <pre>{JSON.stringify(preview, null, 2)}</pre>;
+              })()}
+            </div>
+          )}
+
           <div className="flex justify-end">
             <Button
               onClick={handleUpdate}
               disabled={loading || !transactionId}
               className="w-50 font-segoe-bold bg-secondary text-secondary-foreground hover:bg-secondary/90"
             >
-              {loading ? 'Actualizando...' : 'Actualizar información'}
+              {loading ? 'Actualizando...' : 'Actualizar'}
             </Button>
           </div>
         </CardContent>
