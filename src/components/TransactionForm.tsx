@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 interface TransactionData {
@@ -14,54 +14,41 @@ interface TransactionData {
 
 const TransactionForm = () => {
   const [transactionId, setTransactionId] = useState<string>('');
-  const [transactionData, setTransactionData] = useState<string>('{}');
-  const [webcheckoutData, setWebcheckoutData] = useState<string>('{}');
+  const [fullData, setFullData] = useState<TransactionData | null>(null);
+  const [transactionFields, setTransactionFields] = useState<Record<string, any>>({});
+  const [webcheckoutFields, setWebcheckoutFields] = useState<Record<string, any>>({});
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const { toast } = useToast();
 
   const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/c600a845-e746-46f9-9d2d-e36bffe10953';
 
+  // Función para extraer campos planos (solo string, number, boolean)
+  const extractFlatFields = (obj: any): Record<string, any> => {
+    const flatFields: Record<string, any> = {};
+    if (obj && typeof obj === 'object') {
+      Object.keys(obj).forEach(key => {
+        const value = obj[key];
+        if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+          flatFields[key] = value;
+        }
+      });
+    }
+    return flatFields;
+  };
+
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const transaction = urlParams.get('transaction');
+    const transactionParam = urlParams.get('transactionId');
 
-    if (!transaction) {
-      setError('Falta el parámetro "transaction" en la URL');
+    if (!transactionParam) {
+      setError('Falta el parámetro "transactionId" en la URL');
       return;
     }
 
-    setTransactionId(transaction);
-    sendTransactionToWebhook(transaction);
+    setTransactionId(transactionParam);
+    fetchTransactionData(transactionParam);
   }, []);
-
-  // Nueva función para enviar el POST al webhook con el parámetro transaction
-  const sendTransactionToWebhook = async (transaction: string) => {
-    setLoading(true);
-    setError('');
-    try {
-      const response = await fetch(`${WEBHOOK_URL}?transaction=${transaction}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}) // Puedes enviar un body vacío o ajustarlo según lo que requiera el webhook
-      });
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Error ${response.status}: ${errorData}`);
-      }
-      toast({
-        title: 'Transacción enviada',
-        description: 'Se envió el parámetro transaction al webhook correctamente.',
-      });
-    } catch (err) {
-      setError('Error al enviar la transacción al webhook.');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const fetchTransactionData = async (id: string) => {
     setLoading(true);
@@ -81,8 +68,9 @@ const TransactionForm = () => {
         return;
       }
       
-      setTransactionData(JSON.stringify(data.transaction || {}, null, 2));
-      setWebcheckoutData(JSON.stringify(data.webcheckout || {}, null, 2));
+      setFullData(data);
+      setTransactionFields(extractFlatFields(data.transaction));
+      setWebcheckoutFields(extractFlatFields(data.webcheckout));
       
       toast({
         title: "Datos cargados",
@@ -97,17 +85,15 @@ const TransactionForm = () => {
     }
   };
 
-  const validateJSON = (jsonString: string): boolean => {
-    try {
-      JSON.parse(jsonString);
-      return true;
-    } catch {
-      return false;
+  const handleFieldChange = (section: 'transaction' | 'webcheckout', field: string, value: any) => {
+    if (section === 'transaction') {
+      setTransactionFields(prev => ({ ...prev, [field]: value }));
+    } else {
+      setWebcheckoutFields(prev => ({ ...prev, [field]: value }));
     }
   };
 
   const handleUpdate = async () => {
-    // Validación de ID de transacción
     if (!transactionId || transactionId.trim() === '') {
       toast({
         variant: "destructive",
@@ -117,57 +103,25 @@ const TransactionForm = () => {
       return;
     }
 
-    // Validación de JSON
-    if (!validateJSON(transactionData)) {
-      toast({
-        variant: "destructive",
-        title: "Error de validación",
-        description: "Los datos de 'transaction' no son un JSON válido.",
-      });
-      return;
-    }
-    
-    if (!validateJSON(webcheckoutData)) {
-      toast({
-        variant: "destructive",
-        title: "Error de validación",
-        description: "Los datos de 'webcheckout' no son un JSON válido.",
-      });
-      return;
-    }
-    
     setLoading(true);
     setError('');
     
     try {
-      const parsedTransaction = JSON.parse(transactionData);
-      const parsedWebcheckout = JSON.parse(webcheckoutData);
-      
-      // Validación de que el ID coincida con la inserción
-      if (parsedTransaction.id && parsedTransaction.id !== transactionId) {
-        toast({
-          variant: "destructive",
-          title: "Error de consistencia",
-          description: `El ID en los datos de transacción (${parsedTransaction.id}) no coincide con el ID de la URL (${transactionId}).`,
-        });
-        setLoading(false);
-        return;
-      }
-      
-      if (parsedWebcheckout.transaction_id && parsedWebcheckout.transaction_id !== transactionId) {
-        toast({
-          variant: "destructive",
-          title: "Error de consistencia",
-          description: `El transaction_id en webcheckout (${parsedWebcheckout.transaction_id}) no coincide con el ID de la URL (${transactionId}).`,
-        });
-        setLoading(false);
-        return;
-      }
-      
+      // Reconstruir objetos completos manteniendo campos no planos originales
+      const updatedTransaction = { ...fullData?.transaction };
+      Object.keys(transactionFields).forEach(key => {
+        updatedTransaction[key] = transactionFields[key];
+      });
+
+      const updatedWebcheckout = { ...fullData?.webcheckout };
+      Object.keys(webcheckoutFields).forEach(key => {
+        updatedWebcheckout[key] = webcheckoutFields[key];
+      });
+
       const payload = {
         transactionId,
-        transaction: parsedTransaction,
-        webcheckout: parsedWebcheckout
+        transaction: updatedTransaction,
+        webcheckout: updatedWebcheckout
       };
       
       const response = await fetch(WEBHOOK_URL, {
@@ -183,12 +137,9 @@ const TransactionForm = () => {
         throw new Error(`Error ${response.status}: ${errorData}`);
       }
       
-      const responseData = await response.json();
-      
       toast({
         title: "Actualización exitosa",
         description: `Los datos se han actualizado correctamente para la transacción ${transactionId}.`,
-        className: "bg-ipeco-yellow text-ipeco-blue",
       });
       
       // Refrescar datos después de actualización exitosa
@@ -211,6 +162,46 @@ const TransactionForm = () => {
     }
   };
 
+  const renderFieldInputs = (fields: Record<string, any>, section: 'transaction' | 'webcheckout') => {
+    return Object.keys(fields).map(key => {
+      const value = fields[key];
+      const inputType = typeof value === 'number' ? 'number' : typeof value === 'boolean' ? 'checkbox' : 'text';
+      
+      return (
+        <div key={key} className="space-y-2">
+          <Label htmlFor={`${section}-${key}`} className="font-segoe-bold">
+            {key}
+          </Label>
+          {typeof value === 'boolean' ? (
+            <div className="flex items-center space-x-2">
+              <input
+                type="checkbox"
+                id={`${section}-${key}`}
+                checked={value}
+                onChange={(e) => handleFieldChange(section, key, e.target.checked)}
+                className="h-4 w-4"
+              />
+              <Label htmlFor={`${section}-${key}`} className="font-segoe">
+                {value ? 'Verdadero' : 'Falso'}
+              </Label>
+            </div>
+          ) : (
+            <Input
+              id={`${section}-${key}`}
+              type={inputType}
+              value={value}
+              onChange={(e) => {
+                const newValue = inputType === 'number' ? Number(e.target.value) : e.target.value;
+                handleFieldChange(section, key, newValue);
+              }}
+              className="font-segoe"
+            />
+          )}
+        </div>
+      );
+    });
+  };
+
   if (error && !transactionId) {
     return (
       <div className="container mx-auto px-6 py-8">
@@ -223,8 +214,31 @@ const TransactionForm = () => {
     );
   }
 
+  if (loading && !fullData) {
+    return (
+      <div className="container mx-auto px-6 py-8 max-w-4xl">
+        <Card className="border-primary">
+          <CardHeader className="bg-primary text-primary-foreground">
+            <CardTitle className="font-segoe-semibold text-xl">
+              Cargando Información de Transacción...
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6 pt-6">
+            <div className="flex justify-center py-8">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            </div>
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-12 w-full" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto px-6 py-8 max-w-4xl">
+    <div className="container mx-auto px-6 py-8 max-w-4xl space-y-6">
+      {/* Campos editables */}
       <Card className="border-primary">
         <CardHeader className="bg-primary text-primary-foreground">
           <CardTitle className="font-segoe-semibold text-xl">
@@ -238,6 +252,7 @@ const TransactionForm = () => {
             </div>
           )}
           
+          {/* Transaction ID */}
           <div className="space-y-2">
             <Label htmlFor="transactionId" className="font-segoe-bold">
               ID de Transacción
@@ -245,36 +260,30 @@ const TransactionForm = () => {
             <Input
               id="transactionId"
               value={transactionId}
-              readOnly
-              className="bg-muted font-segoe-bold"
+              onChange={(e) => setTransactionId(e.target.value)}
+              className="font-segoe-bold"
             />
           </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="transaction" className="font-segoe-bold">
-              Datos de Transacción
-            </Label>
-            <Textarea
-              id="transaction"
-              value={transactionData}
-              onChange={(e) => setTransactionData(e.target.value)}
-              placeholder="Datos de la transacción en formato JSON..."
-              className="min-h-[200px] font-mono text-sm"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="webcheckout" className="font-segoe-bold">
-              Datos de Webcheckout
-            </Label>
-            <Textarea
-              id="webcheckout"
-              value={webcheckoutData}
-              onChange={(e) => setWebcheckoutData(e.target.value)}
-              placeholder="Datos del webcheckout en formato JSON..."
-              className="min-h-[200px] font-mono text-sm"
-            />
-          </div>
+
+          {/* Transaction Fields */}
+          {Object.keys(transactionFields).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="font-segoe-semibold text-lg text-primary">Campos de Transaction</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderFieldInputs(transactionFields, 'transaction')}
+              </div>
+            </div>
+          )}
+
+          {/* Webcheckout Fields */}
+          {Object.keys(webcheckoutFields).length > 0 && (
+            <div className="space-y-4">
+              <h3 className="font-segoe-semibold text-lg text-primary">Campos de Webcheckout</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {renderFieldInputs(webcheckoutFields, 'webcheckout')}
+              </div>
+            </div>
+          )}
           
           <Button
             onClick={handleUpdate}
@@ -285,6 +294,22 @@ const TransactionForm = () => {
           </Button>
         </CardContent>
       </Card>
+
+      {/* JSON Viewer */}
+      {fullData && (
+        <Card className="border-muted">
+          <CardHeader className="bg-muted">
+            <CardTitle className="font-segoe-semibold text-xl">
+              Visualizador JSON (Solo lectura)
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <pre className="bg-muted/50 p-4 rounded-md overflow-auto text-sm font-mono max-h-96">
+              {JSON.stringify(fullData, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };
