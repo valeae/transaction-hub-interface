@@ -24,16 +24,44 @@ const TransactionForm = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
-    const id = urlParams.get('transactionId');
-    
-    if (!id) {
-      setError('Falta el ID de la transacción en la URL');
+    const transaction = urlParams.get('transaction');
+
+    if (!transaction) {
+      setError('Falta el parámetro "transaction" en la URL');
       return;
     }
-    
-    setTransactionId(id);
-    fetchTransactionData(id);
+
+    setTransactionId(transaction);
+    sendTransactionToWebhook(transaction);
   }, []);
+
+  // Nueva función para enviar el POST al webhook con el parámetro transaction
+  const sendTransactionToWebhook = async (transaction: string) => {
+    setLoading(true);
+    setError('');
+    try {
+      const response = await fetch(`${WEBHOOK_URL}?transaction=${transaction}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({}) // Puedes enviar un body vacío o ajustarlo según lo que requiera el webhook
+      });
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Error ${response.status}: ${errorData}`);
+      }
+      toast({
+        title: 'Transacción enviada',
+        description: 'Se envió el parámetro transaction al webhook correctamente.',
+      });
+    } catch (err) {
+      setError('Error al enviar la transacción al webhook.');
+      console.error('Error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchTransactionData = async (id: string) => {
     setLoading(true);
