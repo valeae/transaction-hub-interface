@@ -15,7 +15,7 @@ const TransactionForm = () => {
   const [showPreview, setShowPreview] = useState(false);
   const { toast } = useToast();
 
-  const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook-test/bdb7f3d6-b8b1-410a-9558-810b51320f0f';
+  const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/bdb7f3d6-b8b1-410a-9558-810b51320f0f';
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
