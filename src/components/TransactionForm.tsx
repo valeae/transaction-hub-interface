@@ -13,6 +13,7 @@ const TransactionForm = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>('');
   const [showPreview, setShowPreview] = useState(false);
+  const [redirectUrl, setRedirectUrl] = useState<string>('');
   const { toast } = useToast();
 
   const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/bdb7f3d6-b8b1-410a-9558-810b51320f0f';
@@ -115,6 +116,10 @@ const TransactionForm = () => {
         description: `Los datos se han actualizado correctamente para la transacción ${transactionId}.`,
         className: "bg-primary text-white border border-border",
       });
+
+      // Construir URL de Insight Viewer y habilitar el botón de redirección
+      const insightViewerUrl = `https://epayco-insight-viewer.lovable.app/?transaction=${transactionId}`;
+      setRedirectUrl(insightViewerUrl);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Error desconocido';
       setError(`Error al actualizar: ${errorMessage}`);
@@ -153,6 +158,28 @@ const TransactionForm = () => {
           {error && (
             <div className="bg-destructive/10 border border-destructive text-destructive px-4 py-3 rounded-md">
               <p className="font-segoe">{error}</p>
+            </div>
+          )}
+
+          {redirectUrl && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-md">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-segoe-bold text-blue-900">¡Datos actualizados exitosamente!</p>
+                  <p className="font-segoe text-sm text-blue-700 mt-1">
+                    Ver detalles de la transacción en Insight Viewer
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => (window.location.href = redirectUrl)}
+                  className="text-blue-700 border-blue-300 hover:bg-blue-100 font-segoe-bold"
+                >
+                  Ver en Insight Viewer
+                </Button>
+              </div>
             </div>
           )}
 
