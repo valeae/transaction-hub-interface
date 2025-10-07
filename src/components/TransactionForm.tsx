@@ -32,9 +32,31 @@ const TransactionForm = () => {
   const [error, setError] = useState<string>('');
   const [showPreview, setShowPreview] = useState(false);
   const [redirectUrl, setRedirectUrl] = useState<string>('');
+  const [reportId, setReportId] = useState<string>('');
   const { toast } = useToast();
 
   const WEBHOOK_URL = 'https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/bdb7f3d6-b8b1-410a-9558-810b51320f0f';
+
+  // Obtener reportId relacionado al transactionId
+  useEffect(() => {
+    if (!transactionId) return;
+
+    const fetchReportId = async () => {
+      try {
+        const res = await fetch(`https://n8n-heroku-backup-2ed39cd10b25.herokuapp.com/webhook/3a24cb56-8fcf-4060-8d36-998aba107d5d?_id=${transactionId}`);
+        const data = await res.json();
+        const report = data?.body?.reportId;
+        setReportId(report || "");
+      } catch (err) {
+        console.error("Error fetching reportId:", err);
+        setReportId("");
+      }
+    };
+
+    fetchReportId();
+  }, [transactionId]);
+
+
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
@@ -60,7 +82,7 @@ const TransactionForm = () => {
     // Si es un objeto, procesar sus propiedades
     if (typeof obj === 'object') {
       const result: any = {};
-      
+
       for (const [key, value] of Object.entries(obj)) {
         if (typeof value === 'object' && value !== null) {
           // Procesar tipos especiales de MongoDB
@@ -96,7 +118,7 @@ const TransactionForm = () => {
           result[key] = value;
         }
       }
-      
+
       return result;
     }
 
@@ -107,40 +129,40 @@ const TransactionForm = () => {
   const convertMongoShellToExtendedJSON = (text: string): string => {
     // Convertir ObjectId("...") a {"$oid": "..."}
     let converted = text.replace(/ObjectId\("([^"]+)"\)/g, '{"$oid": "$1"}');
-    
+
     // Convertir ISODate("...") a {"$date": "..."}
     converted = converted.replace(/ISODate\("([^"]+)"\)/g, '{"$date": "$1"}');
-    
+
     // Convertir NumberLong("...") a {"$numberLong": "..."}
     converted = converted.replace(/NumberLong\("([^"]+)"\)/g, '{"$numberLong": "$1"}');
-    
+
     // Convertir NumberInt(...) a {"$numberInt": ...}
     converted = converted.replace(/NumberInt\(([^)]+)\)/g, '{"$numberInt": $1}');
-    
+
     // Convertir NumberDouble("...") a {"$numberDouble": "..."}
     converted = converted.replace(/NumberDouble\("([^"]+)"\)/g, '{"$numberDouble": "$1"}');
-    
+
     // Convertir Timestamp(...) a {"$timestamp": "..."}
     converted = converted.replace(/Timestamp\(([^)]+)\)/g, '{"$timestamp": "$1"}');
-    
+
     // Convertir BinData(...) a {"$binary": "..."}
     converted = converted.replace(/BinData\([^,]+,\s*"([^"]+)"\)/g, '{"$binary": "$1"}');
-    
+
     // Convertir RegExp(...) a {"$regex": "..."}
     converted = converted.replace(/RegExp\("([^"]+)"\)/g, '{"$regex": "/$1/"}');
-    
+
     // Convertir undefined a {"$undefined": true}
     converted = converted.replace(/undefined/g, '{"$undefined": true}');
-    
+
     // Convertir MinKey a {"$minKey": 1}
     converted = converted.replace(/MinKey/g, '{"$minKey": 1}');
-    
+
     // Convertir MaxKey a {"$maxKey": 1}
     converted = converted.replace(/MaxKey/g, '{"$maxKey": 1}');
-    
+
     // Convertir DBRef(...) a {"$ref": "...", "$id": "..."}
     converted = converted.replace(/DBRef\("([^"]+)",\s*"([^"]+)"\)/g, '{"$ref": "$1", "$id": "$2"}');
-    
+
     return converted;
   };
 
@@ -149,16 +171,16 @@ const TransactionForm = () => {
     try {
       // Primero intentar parsear como JSON estándar
       const parsed = JSON.parse(jsonString);
-      
+
       // Si es JSON estándar, verificar si tiene tipos de MongoDB y convertirlos
       const converted = parseMongoExtendedJSON(parsed);
-      
+
       return { isValid: true, parsedData: converted };
     } catch (err) {
       try {
         // Si falla JSON estándar, intentar convertir formato de MongoDB Shell a Extended JSON
         const convertedText = convertMongoShellToExtendedJSON(jsonString);
-        
+
         try {
           const parsed = JSON.parse(convertedText);
           const converted = parseMongoExtendedJSON(parsed);
@@ -170,9 +192,9 @@ const TransactionForm = () => {
           return { isValid: true, parsedData: converted };
         }
       } catch (evalErr) {
-        return { 
-          isValid: false, 
-          error: `Error al parsear JSON. Asegúrate de usar JSON estándar, Extended JSON de MongoDB, o formato de MongoDB Shell. Error: ${err instanceof Error ? err.message : 'Formato inválido'}` 
+        return {
+          isValid: false,
+          error: `Error al parsear JSON. Asegúrate de usar JSON estándar, Extended JSON de MongoDB, o formato de MongoDB Shell. Error: ${err instanceof Error ? err.message : 'Formato inválido'}`
         };
       }
     }
@@ -217,14 +239,14 @@ const TransactionForm = () => {
       });
       return;
     }
-    
+
     setLoading(true);
     setError('');
-    
+
     try {
       const parsedTransaction = transactionValidation.parsedData;
       const parsedWebcheckout = webcheckoutValidation.parsedData;
-      
+
       if (parsedTransaction.id && parsedTransaction.id !== transactionId) {
         toast({
           variant: "destructive",
@@ -234,7 +256,7 @@ const TransactionForm = () => {
         setLoading(false);
         return;
       }
-      
+
       if (parsedWebcheckout.transaction_id && parsedWebcheckout.transaction_id !== transactionId) {
         toast({
           variant: "destructive",
@@ -244,13 +266,13 @@ const TransactionForm = () => {
         setLoading(false);
         return;
       }
-      
+
       const payload = {
         transactionId,
         transaction: parsedTransaction,
         webcheckout: parsedWebcheckout
       };
-      
+
       const response = await fetch(WEBHOOK_URL, {
         method: 'POST',
         headers: {
@@ -258,12 +280,12 @@ const TransactionForm = () => {
         },
         body: JSON.stringify(payload)
       });
-      
+
       if (!response.ok) {
         const errorData = await response.text();
         throw new Error(`Error ${response.status}: ${errorData}`);
       }
-      
+
       toast({
         title: "Actualización exitosa",
         description: `Los datos se han actualizado correctamente para la transacción ${transactionId}.`,
@@ -291,7 +313,7 @@ const TransactionForm = () => {
   const formatExtendedJSON = (field: 'transaction' | 'webcheckout') => {
     const data = field === 'transaction' ? transactionData : webcheckoutData;
     const validation = validateAndParseJSON(data);
-    
+
     if (validation.isValid && validation.parsedData) {
       const formatted = formatJSON(validation.parsedData);
       if (field === 'transaction') {
@@ -299,7 +321,7 @@ const TransactionForm = () => {
       } else {
         setWebcheckoutData(formatted);
       }
-      
+
       toast({
         title: "JSON formateado",
         description: "JSON convertido y formateado correctamente.",
@@ -331,7 +353,11 @@ const TransactionForm = () => {
       <Card className="border-primary">
         <CardHeader className="bg-primary text-primary-foreground">
           <CardTitle className="font-segoe-semibold text-xl">
-            Información de Transacción
+            {reportId
+              ? `Reporte: ${reportId}`
+              : loading
+                ? 'Cargando reporte...'
+                : 'Información de Transacción'}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-6 pt-6">
@@ -451,7 +477,7 @@ const TransactionForm = () => {
                 try {
                   const transactionValidation = validateAndParseJSON(transactionData);
                   const webcheckoutValidation = validateAndParseJSON(webcheckoutData);
-                  
+
                   if (transactionValidation.isValid && webcheckoutValidation.isValid) {
                     preview = {
                       transactionId,
@@ -459,7 +485,7 @@ const TransactionForm = () => {
                       webcheckout: webcheckoutValidation.parsedData,
                     };
                   } else {
-                    preview = { 
+                    preview = {
                       error: 'JSON inválido en alguno de los campos.',
                       transactionError: transactionValidation.error,
                       webcheckoutError: webcheckoutValidation.error
